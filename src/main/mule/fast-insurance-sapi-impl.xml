@@ -1,0 +1,562 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+		http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+	<!-- ========================================== -->
+	<!-- POLICY OPERATIONS                          -->
+	<!-- ========================================== -->
+
+	<!-- GET /policies/{policyId} -->
+	<flow name="get:\policies\(policyId)" doc:name="Get Policy By ID" doc:id="8fd526e3-dea2-455b-b67e-f263a2e15f0e">
+		<logger level="INFO" doc:name="Log Request" message='#["[$(vars.correlationId)] Getting policy: $(attributes.uriParams.policyId)"]' />
+		
+		<db:select config-ref="PostgreSQL_Database_Config" doc:name="Select Policy">
+			<db:sql><![CDATA[SELECT policy_id as "policyId", 
+       customer_id as "customerId", 
+       policy_type as "policyType", 
+       status, 
+       start_date as "startDate", 
+       end_date as "endDate", 
+       premium_amount as "premiumAmount"
+FROM policies 
+WHERE policy_id = :policyId]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	policyId: attributes.uriParams.policyId
+}]]]></db:input-parameters>
+		</db:select>
+		
+		<ee:transform doc:name="Transform to Policy Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+if (sizeOf(payload) > 0) 
+	payload[0]
+else
+	null]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		
+		<choice doc:name="Check if Policy Found">
+			<when expression="#[payload == null]">
+				<raise-error type="APP:POLICY_NOT_FOUND" description='#["Policy with ID $(attributes.uriParams.policyId) not found"]' doc:name="Raise POLICY_NOT_FOUND" />
+			</when>
+		</choice>
+		
+		<logger level="INFO" doc:name="Log Response" message='#["[$(vars.correlationId)] Policy retrieved successfully"]' />
+		
+		<error-handler>
+			<on-error-propagate type="APP:POLICY_NOT_FOUND" doc:name="On POLICY_NOT_FOUND">
+				<ee:transform doc:name="Set 404 Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "POLICY_NOT_FOUND",
+	message: error.description,
+	correlationId: vars.correlationId,
+	timestamp: now()
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[404]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+	<!-- POST /policies -->
+	<flow name="post:\policies" doc:name="Create Policy" doc:id="e4c5fb0a-3007-4f0d-a2e4-29df8089dfab">
+		<logger level="INFO" doc:name="Log Request" message='#["[$(vars.correlationId)] Creating new policy"]' />
+		
+		<ee:transform doc:name="Generate Policy ID and Prepare Insert">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload ++ {
+	policyId: "POL-" ++ (randomInt(9999) + 1000)
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="newPolicy"><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		
+		<db:insert config-ref="PostgreSQL_Database_Config" doc:name="Insert Policy">
+			<db:sql><![CDATA[INSERT INTO policies (policy_id, customer_id, policy_type, status, start_date, end_date, premium_amount)
+VALUES (:policyId, :customerId, :policyType, :status, :startDate, :endDate, :premiumAmount)]]></db:sql>
+			<db:input-parameters><![CDATA[#[vars.newPolicy]]]></db:input-parameters>
+		</db:insert>
+		
+		<ee:transform doc:name="Set Created Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.newPolicy]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="httpStatus"><![CDATA[201]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		
+		<logger level="INFO" doc:name="Log Response" message='#["[$(vars.correlationId)] Policy created: $(vars.newPolicy.policyId)"]' />
+	</flow>
+
+	<!-- PUT /policies/{policyId} -->
+	<flow name="put:\policies\(policyId)" doc:name="Update Policy" doc:id="6c1da56b-e9b8-4d2a-8e34-7b7fedfc4934">
+		<logger level="INFO" doc:name="Log Request" message='#["[$(vars.correlationId)] Updating policy: $(attributes.uriParams.policyId)"]' />
+		
+		<!-- Save Original Payload -->
+		<set-variable variableName="updatedPolicy" value="#[payload]" doc:name="Save Policy Input" />
+		
+		<db:update config-ref="PostgreSQL_Database_Config" doc:name="Update Policy">
+			<db:sql><![CDATA[UPDATE policies 
+SET customer_id = :customerId,
+    policy_type = :policyType,
+    status = :status,
+    start_date = :startDate,
+    end_date = :endDate,
+    premium_amount = :premiumAmount,
+    updated_at = CURRENT_TIMESTAMP
+WHERE policy_id = :policyId]]></db:sql>
+			<db:input-parameters><![CDATA[#[vars.updatedPolicy]]]></db:input-parameters>
+		</db:update>
+		
+		<choice doc:name="Check if Policy Updated">
+			<when expression="#[payload == 0]">
+				<raise-error type="APP:POLICY_NOT_FOUND" description='#["Policy with ID $(attributes.uriParams.policyId) not found"]' doc:name="Raise POLICY_NOT_FOUND" />
+			</when>
+		</choice>
+		
+		<ee:transform doc:name="Set Updated Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.updatedPolicy]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		
+		<logger level="INFO" doc:name="Log Response" message='#["[$(vars.correlationId)] Policy updated successfully"]' />
+		
+		<error-handler>
+			<on-error-propagate type="APP:POLICY_NOT_FOUND" doc:name="On POLICY_NOT_FOUND">
+				<ee:transform doc:name="Set 404 Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "POLICY_NOT_FOUND",
+	message: error.description,
+	correlationId: vars.correlationId,
+	timestamp: now()
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[404]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+	<!-- GET /policies (Search) -->
+	<flow name="get:\policies" doc:name="Search Policies" doc:id="70a8e81e-65ce-4c64-9ed9-093d98e6b1f1">
+		<logger level="INFO" doc:name="Log Request" message='#["[$(vars.correlationId)] Searching policies with filters"]' />
+		
+		<ee:transform doc:name="Build Dynamic Query">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+import * from dw::core::Strings
+---
+{
+	sql: "SELECT policy_id as \"policyId\", customer_id as \"customerId\", policy_type as \"policyType\", status, start_date as \"startDate\", end_date as \"endDate\", premium_amount as \"premiumAmount\" FROM policies" ++ do {
+		var conditions = []
+		var withCustomerId = if (!isEmpty(attributes.queryParams.customerId)) 
+			conditions << "customer_id = :customerId" 
+			else conditions
+		var withPolicyType = if (!isEmpty(attributes.queryParams.policyType)) 
+			withCustomerId << "policy_type = :policyType" 
+			else withCustomerId
+		var withStatus = if (!isEmpty(attributes.queryParams.status)) 
+			withPolicyType << "status = :status" 
+			else withPolicyType
+		var withStartDate = if (!isEmpty(attributes.queryParams.startDate)) 
+			withStatus << "start_date >= :startDate" 
+			else withStatus
+		var withEndDate = if (!isEmpty(attributes.queryParams.endDate)) 
+			withStartDate << "end_date <= :endDate" 
+			else withStartDate
+		---
+		if (sizeOf(withEndDate) > 0)
+			" WHERE " ++ (withEndDate joinBy " AND ")
+		else
+			""
+	},
+	params: attributes.queryParams filterObject ((value, key) -> value != null and value != "")
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		
+		<db:select config-ref="PostgreSQL_Database_Config" doc:name="Select Policies">
+			<db:sql><![CDATA[#[payload.sql]]]></db:sql>
+			<db:input-parameters><![CDATA[#[payload.params]]]></db:input-parameters>
+		</db:select>
+		
+		<ee:transform doc:name="Transform to Policy Array">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		
+		<logger level="INFO" doc:name="Log Response" message='#["[$(vars.correlationId)] Found $(sizeOf(payload)) policies"]' />
+	</flow>
+
+	<!-- ========================================== -->
+	<!-- CLAIM OPERATIONS                           -->
+	<!-- ========================================== -->
+
+	<!-- GET /claims/{claimId} -->
+	<flow name="get:\claims\(claimId)" doc:name="Get Claim By ID" doc:id="bea3fad3-05e3-4c49-aec9-e7e567f663ee">
+		<logger level="INFO" doc:name="Log Request" message='#["[$(vars.correlationId)] Getting claim: $(attributes.uriParams.claimId)"]' />
+		
+		<db:select config-ref="PostgreSQL_Database_Config" doc:name="Select Claim">
+			<db:sql><![CDATA[SELECT claim_id as "claimId", 
+       policy_id as "policyId", 
+       claim_type as "claimType", 
+       status, 
+       incident_date as "incidentDate", 
+       claim_amount as "claimAmount", 
+       description
+FROM claims 
+WHERE claim_id = :claimId]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	claimId: attributes.uriParams.claimId
+}]]]></db:input-parameters>
+		</db:select>
+		
+		<ee:transform doc:name="Transform to Claim Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+if (sizeOf(payload) > 0) 
+	payload[0]
+else
+	null]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		
+		<choice doc:name="Check if Claim Found">
+			<when expression="#[payload == null]">
+				<raise-error type="APP:CLAIM_NOT_FOUND" description='#["Claim with ID $(attributes.uriParams.claimId) not found"]' doc:name="Raise CLAIM_NOT_FOUND" />
+			</when>
+		</choice>
+		
+		<logger level="INFO" doc:name="Log Response" message='#["[$(vars.correlationId)] Claim retrieved successfully"]' />
+		
+		<error-handler>
+			<on-error-propagate type="APP:CLAIM_NOT_FOUND" doc:name="On CLAIM_NOT_FOUND">
+				<ee:transform doc:name="Set 404 Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "CLAIM_NOT_FOUND",
+	message: error.description,
+	correlationId: vars.correlationId,
+	timestamp: now()
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[404]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+	<!-- POST /claims -->
+	<flow name="post:\claims" doc:name="Create Claim" doc:id="36eb458f-67e0-470f-961d-019edce4b52f">
+		<logger level="INFO" doc:name="Log Request" message='#["[$(vars.correlationId)] Creating new claim for policy: $(payload.policyId)"]' />
+		
+		<!-- Save Original Payload -->
+		<set-variable variableName="claimInput" value="#[payload]" doc:name="Save Claim Input" />
+		
+		<!-- Validate Policy Exists and is Active -->
+		<db:select config-ref="PostgreSQL_Database_Config" doc:name="Validate Policy">
+			<db:sql><![CDATA[SELECT policy_id, status FROM policies WHERE policy_id = :policyId]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	policyId: vars.claimInput.policyId
+}]]]></db:input-parameters>
+		</db:select>
+		
+		<choice doc:name="Check Policy Status">
+			<when expression="#[sizeOf(payload) == 0]">
+				<raise-error type="APP:POLICY_NOT_FOUND" description='#["Policy not found"]' doc:name="Raise POLICY_NOT_FOUND" />
+			</when>
+			<when expression='#[payload[0].status != "Active"]'>
+				<raise-error type="APP:POLICY_NOT_ACTIVE" description='#["Policy is not active"]' doc:name="Raise POLICY_NOT_ACTIVE" />
+			</when>
+		</choice>
+		
+		<ee:transform doc:name="Generate Claim ID and Prepare Insert">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.claimInput ++ {
+	claimId: "CLM-" ++ (randomInt(9999) + 9000)
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="newClaim"><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		
+		<db:insert config-ref="PostgreSQL_Database_Config" doc:name="Insert Claim">
+			<db:sql><![CDATA[INSERT INTO claims (claim_id, policy_id, claim_type, status, incident_date, claim_amount, description)
+VALUES (:claimId, :policyId, :claimType, :status, :incidentDate, :claimAmount, :description)]]></db:sql>
+			<db:input-parameters><![CDATA[#[vars.newClaim]]]></db:input-parameters>
+		</db:insert>
+		
+		<ee:transform doc:name="Set Created Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.newClaim]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="httpStatus"><![CDATA[201]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		
+		<logger level="INFO" doc:name="Log Response" message='#["[$(vars.correlationId)] Claim created: $(vars.newClaim.claimId)"]' />
+		
+		<error-handler>
+			<on-error-propagate type="APP:POLICY_NOT_FOUND" doc:name="On POLICY_NOT_FOUND">
+				<ee:transform doc:name="Set 400 Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "POLICY_NOT_FOUND",
+	message: error.description,
+	correlationId: vars.correlationId,
+	timestamp: now()
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate type="APP:POLICY_NOT_ACTIVE" doc:name="On POLICY_NOT_ACTIVE">
+				<ee:transform doc:name="Set 400 Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "POLICY_NOT_ACTIVE",
+	message: error.description,
+	correlationId: vars.correlationId,
+	timestamp: now()
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+	<!-- PUT /claims/{claimId} -->
+	<flow name="put:\claims\(claimId)" doc:name="Update Claim" doc:id="147fdd0c-9f79-43f1-b809-5f3ff2c6051d">
+		<logger level="INFO" doc:name="Log Request" message='#["[$(vars.correlationId)] Updating claim: $(attributes.uriParams.claimId)"]' />
+		
+		<!-- Save Original Payload -->
+		<set-variable variableName="updatedClaim" value="#[payload]" doc:name="Save Claim Input" />
+		
+		<db:update config-ref="PostgreSQL_Database_Config" doc:name="Update Claim">
+			<db:sql><![CDATA[UPDATE claims 
+SET policy_id = :policyId,
+    claim_type = :claimType,
+    status = :status,
+    incident_date = :incidentDate,
+    claim_amount = :claimAmount,
+    description = :description,
+    updated_at = CURRENT_TIMESTAMP
+WHERE claim_id = :claimId]]></db:sql>
+			<db:input-parameters><![CDATA[#[vars.updatedClaim]]]></db:input-parameters>
+		</db:update>
+		
+		<choice doc:name="Check if Claim Updated">
+			<when expression="#[payload == 0]">
+				<raise-error type="APP:CLAIM_NOT_FOUND" description='#["Claim with ID $(attributes.uriParams.claimId) not found"]' doc:name="Raise CLAIM_NOT_FOUND" />
+			</when>
+		</choice>
+		
+		<ee:transform doc:name="Set Updated Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.updatedClaim]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		
+		<logger level="INFO" doc:name="Log Response" message='#["[$(vars.correlationId)] Claim updated successfully"]' />
+		
+		<error-handler>
+			<on-error-propagate type="APP:CLAIM_NOT_FOUND" doc:name="On CLAIM_NOT_FOUND">
+				<ee:transform doc:name="Set 404 Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "CLAIM_NOT_FOUND",
+	message: error.description,
+	correlationId: vars.correlationId,
+	timestamp: now()
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[404]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+	<!-- GET /claims (Search) -->
+	<flow name="get:\claims" doc:name="Search Claims" doc:id="282b42d1-4c67-44da-9ed2-0a14919238af">
+		<logger level="INFO" doc:name="Log Request" message='#["[$(vars.correlationId)] Searching claims with filters"]' />
+		
+		<ee:transform doc:name="Build Dynamic Query">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+import * from dw::core::Strings
+---
+{
+	sql: "SELECT claim_id as \"claimId\", policy_id as \"policyId\", claim_type as \"claimType\", status, incident_date as \"incidentDate\", claim_amount as \"claimAmount\", description FROM claims" ++ do {
+		var conditions = []
+		var withPolicyId = if (!isEmpty(attributes.queryParams.policyId)) 
+			conditions << "policy_id = :policyId" 
+			else conditions
+		var withClaimType = if (!isEmpty(attributes.queryParams.claimType)) 
+			withPolicyId << "claim_type = :claimType" 
+			else withPolicyId
+		var withStatus = if (!isEmpty(attributes.queryParams.status)) 
+			withClaimType << "status = :status" 
+			else withClaimType
+		var withStartDate = if (!isEmpty(attributes.queryParams.startDate)) 
+			withStatus << "incident_date >= :startDate" 
+			else withStatus
+		var withEndDate = if (!isEmpty(attributes.queryParams.endDate)) 
+			withStartDate << "incident_date <= :endDate" 
+			else withStartDate
+		---
+		if (sizeOf(withEndDate) > 0)
+			" WHERE " ++ (withEndDate joinBy " AND ")
+		else
+			""
+	},
+	params: attributes.queryParams filterObject ((value, key) -> value != null and value != "")
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		
+		<db:select config-ref="PostgreSQL_Database_Config" doc:name="Select Claims">
+			<db:sql><![CDATA[#[payload.sql]]]></db:sql>
+			<db:input-parameters><![CDATA[#[payload.params]]]></db:input-parameters>
+		</db:select>
+		
+		<ee:transform doc:name="Transform to Claim Array">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		
+		<logger level="INFO" doc:name="Log Response" message='#["[$(vars.correlationId)] Found $(sizeOf(payload)) claims"]' />
+	</flow>
+
+	<!-- ========================================== -->
+	<!-- HEALTH CHECK                               -->
+	<!-- ========================================== -->
+
+	<!-- GET /health -->
+	<flow name="get:\health:" doc:name="Health Check" doc:id="3e0b76a2-8b58-4c76-b703-d2563adb1413">
+		<logger level="DEBUG" doc:name="Log Health Check" message='#["[$(vars.correlationId)] Health check requested"]' />
+		
+		<try doc:name="Try DB Connection">
+			<db:select config-ref="PostgreSQL_Database_Config" doc:name="Test DB Connection">
+				<db:sql><![CDATA[SELECT 1 as test]]></db:sql>
+			</db:select>
+			<ee:transform doc:name="Set Healthy Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	status: "UP",
+	timestamp: now(),
+	database: "CONNECTED"
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<error-handler>
+				<on-error-continue type="ANY" doc:name="On DB Error">
+					<ee:transform doc:name="Set Unhealthy Response">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	status: "DOWN",
+	timestamp: now(),
+	database: "DISCONNECTED"
+}]]></ee:set-payload>
+						</ee:message>
+						<ee:variables>
+							<ee:set-variable variableName="httpStatus"><![CDATA[503]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</on-error-continue>
+			</error-handler>
+		</try>
+	</flow>
+
+</mule>

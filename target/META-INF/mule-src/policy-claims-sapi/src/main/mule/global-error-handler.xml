@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+	<!-- Global Error Handler -->
+	<error-handler name="global-error-handler" doc:name="Global Error Handler">
+		
+		<!-- APIKIT:BAD_REQUEST - 400 -->
+		<on-error-propagate type="APIKIT:BAD_REQUEST" doc:name="On APIKIT:BAD_REQUEST">
+			<ee:transform doc:name="Set 400 Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "INVALID_PAYLOAD",
+	message: "Bad request: Invalid path, query parameter, or body content",
+	details: error.description default "",
+	correlationId: vars.correlationId default uuid(),
+	timestamp: now()
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[400]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<logger level="ERROR" doc:name="Log Error" message='#["[$(vars.correlationId)] APIKIT:BAD_REQUEST - $(error.description)"]' />
+		</on-error-propagate>
+
+		<!-- APIKIT:NOT_FOUND - 404 -->
+		<on-error-propagate type="APIKIT:NOT_FOUND" doc:name="On APIKIT:NOT_FOUND">
+			<ee:transform doc:name="Set 404 Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "RESOURCE_NOT_FOUND",
+	message: "Resource not found",
+	details: error.description default "",
+	correlationId: vars.correlationId default uuid(),
+	timestamp: now()
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[404]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<logger level="WARN" doc:name="Log Error" message='#["[$(vars.correlationId)] APIKIT:NOT_FOUND - $(error.description)"]' />
+		</on-error-propagate>
+
+		<!-- APIKIT:METHOD_NOT_ALLOWED - 405 -->
+		<on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED" doc:name="On APIKIT:METHOD_NOT_ALLOWED">
+			<ee:transform doc:name="Set 405 Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "METHOD_NOT_ALLOWED",
+	message: "Method not allowed",
+	details: error.description default "",
+	correlationId: vars.correlationId default uuid(),
+	timestamp: now()
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[405]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<logger level="WARN" doc:name="Log Error" message='#["[$(vars.correlationId)] APIKIT:METHOD_NOT_ALLOWED - $(error.description)"]' />
+		</on-error-propagate>
+
+		<!-- APIKIT:NOT_ACCEPTABLE - 406 -->
+		<on-error-propagate type="APIKIT:NOT_ACCEPTABLE" doc:name="On APIKIT:NOT_ACCEPTABLE">
+			<ee:transform doc:name="Set 406 Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "NOT_ACCEPTABLE",
+	message: "Not acceptable",
+	details: error.description default "",
+	correlationId: vars.correlationId default uuid(),
+	timestamp: now()
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[406]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<logger level="WARN" doc:name="Log Error" message='#["[$(vars.correlationId)] APIKIT:NOT_ACCEPTABLE - $(error.description)"]' />
+		</on-error-propagate>
+
+		<!-- APIKIT:UNSUPPORTED_MEDIA_TYPE - 415 -->
+		<on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE" doc:name="On APIKIT:UNSUPPORTED_MEDIA_TYPE">
+			<ee:transform doc:name="Set 415 Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "UNSUPPORTED_MEDIA_TYPE",
+	message: "Unsupported media type",
+	details: error.description default "",
+	correlationId: vars.correlationId default uuid(),
+	timestamp: now()
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[415]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<logger level="WARN" doc:name="Log Error" message='#["[$(vars.correlationId)] APIKIT:UNSUPPORTED_MEDIA_TYPE - $(error.description)"]' />
+		</on-error-propagate>
+
+		<!-- APIKIT:NOT_IMPLEMENTED - 501 -->
+		<on-error-propagate type="APIKIT:NOT_IMPLEMENTED" doc:name="On APIKIT:NOT_IMPLEMENTED">
+			<ee:transform doc:name="Set 501 Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "NOT_IMPLEMENTED",
+	message: "Not implemented",
+	details: error.description default "",
+	correlationId: vars.correlationId default uuid(),
+	timestamp: now()
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[501]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<logger level="ERROR" doc:name="Log Error" message='#["[$(vars.correlationId)] APIKIT:NOT_IMPLEMENTED - $(error.description)"]' />
+		</on-error-propagate>
+
+		<!-- HTTP:UNAUTHORIZED - 401 -->
+		<on-error-propagate type="HTTP:UNAUTHORIZED" doc:name="On HTTP:UNAUTHORIZED">
+			<ee:transform doc:name="Set 401 Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "UNAUTHORIZED",
+	message: "Unauthorized access",
+	details: error.description default "",
+	correlationId: vars.correlationId default uuid(),
+	timestamp: now()
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[401]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<logger level="WARN" doc:name="Log Error" message='#["[$(vars.correlationId)] HTTP:UNAUTHORIZED - $(error.description)"]' />
+		</on-error-propagate>
+
+		<!-- DB:CONNECTIVITY - 500 -->
+		<on-error-propagate type="DB:CONNECTIVITY" doc:name="On DB:CONNECTIVITY">
+			<ee:transform doc:name="Set 500 Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "DATABASE_CONNECTION_ERROR",
+	message: "Database connection error",
+	details: "Unable to connect to the database",
+	correlationId: vars.correlationId default uuid(),
+	timestamp: now()
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[500]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<logger level="ERROR" doc:name="Log Error" message='#["[$(vars.correlationId)] DB:CONNECTIVITY - $(error.description)"]' />
+		</on-error-propagate>
+
+		<!-- DB:QUERY_EXECUTION - 500 -->
+		<on-error-propagate type="DB:QUERY_EXECUTION" doc:name="On DB:QUERY_EXECUTION">
+			<ee:transform doc:name="Set 500 Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "DATABASE_QUERY_ERROR",
+	message: "Database query execution error",
+	details: error.description default "",
+	correlationId: vars.correlationId default uuid(),
+	timestamp: now()
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[500]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<logger level="ERROR" doc:name="Log Error" message='#["[$(vars.correlationId)] DB:QUERY_EXECUTION - $(error.description)"]' />
+		</on-error-propagate>
+
+		<!-- ANY - 500 (Catch-all) -->
+		<on-error-propagate type="ANY" doc:name="On ANY">
+			<ee:transform doc:name="Set 500 Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errorCode: "INTERNAL_SERVER_ERROR",
+	message: "An unexpected error occurred",
+	details: error.description default "",
+	correlationId: vars.correlationId default uuid(),
+	timestamp: now()
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[500]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<logger level="ERROR" doc:name="Log Error" message='#["[$(vars.correlationId)] INTERNAL_SERVER_ERROR - $(error.description) - $(error.detailedDescription)"]' />
+		</on-error-propagate>
+
+	</error-handler>
+
+</mule>

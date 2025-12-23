@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" 
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+		http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+		http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd
+		http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd">
+
+	<!-- Global Property for Environment -->
+	<global-property name="mule.env" value="dev" doc:name="Environment Property" />
+	<global-property name="secure.key" value="mulesoft12345678" doc:name="Secure Key Property" />
+
+	<!-- Configuration Properties -->
+	<configuration-properties file="properties/config-${mule.env}.yaml" doc:name="Configuration Properties" />
+	
+	<!-- Secure Configuration Properties -->
+	<secure-properties:config name="Secure_Properties_Config" 
+		file="properties/config-secure-${mule.dev}.yaml" 
+		key="${secure.key}" 
+		doc:name="Secure Properties Config">
+		<secure-properties:encrypt algorithm="Blowfish" />
+
+	</secure-properties:config>
+
+	<!-- HTTP Listener Configuration -->
+	<http:listener-config name="HTTP_Listener_Config" doc:name="HTTP Listener Config">
+		<http:listener-connection host="0.0.0.0" port="${http.port}" />
+	</http:listener-config>
+
+	<!-- APIKit Configuration -->
+<apikit:config
+		name="fast-insurance-policy-claims-api-config"
+		api="resource::78c3b5c8-9e25-47eb-ad18-be0e4d3cb6b9:fast-insurance-policy-claims-api:1.0.0:raml:zip:fast-insurance-policy-claims-api.raml"
+		outboundHeadersMapName="outboundHeaders"
+		httpStatusVarName="httpStatus" />
+
+	<!-- PostgreSQL Database Configuration -->
+	<db:config name="PostgreSQL_Database_Config" doc:name="Database Config">
+		<db:generic-connection 
+			url="jdbc:postgresql://${db.host}:${db.port}/${db.name}" 
+			driverClassName="org.postgresql.Driver" 
+			user="${db.user}" 
+			password="${secure::db.password}">
+			<reconnection>
+				<reconnect frequency="5000" count="3" />
+			</reconnection>
+			<db:pooling-profile 
+				maxPoolSize="10" 
+				minPoolSize="2" 
+				maxWait="30000" 
+				preparedStatementCacheSize="15" />
+		</db:generic-connection>
+	</db:config>
+	<api-gateway:autodiscovery apiId="20630660" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="bb3c9bcf-c854-47d0-8ef0-8328225619c5" flowRef="fast-insurance-policy-claims-api-main" />
+
+
+</mule>

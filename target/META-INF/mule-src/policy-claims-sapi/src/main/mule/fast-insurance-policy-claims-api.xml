@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd ">
+	
+	
+	
+	
+	
+		
+		
+	<flow name="fast-insurance-policy-claims-api-main">
+		<http:listener
+			config-ref="HTTP_Listener_Config"
+			path="/api/*">
+			<http:response
+				statusCode="#[vars.httpStatus default 200]">
+				<http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+			</http:response>
+			<http:error-response
+				statusCode="#[vars.httpStatus default 500]">
+				<http:body><![CDATA[#[payload]]]></http:body>
+				<http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+			</http:error-response>
+		</http:listener>
+		<set-variable value="#[uuid()]"
+			doc:name="Set Correlation ID"
+			doc:id="80eece6f-8f08-4035-8ad1-f5bef84a1bc6"
+			variableName="correlationId" />
+		<logger level="INFO" doc:name="Log Request" doc:id="4ab89416-fc6a-4419-bda9-bf9c70846d0a" message='#["[$(vars.correlationId)] Request received: $(attributes.method) $(attributes.requestPath)"]'/>
+		<apikit:router config-ref="fast-insurance-policy-claims-api-config" />
+        <error-handler ref="global-error-handler">
+ 
+        </error-handler>
+	</flow>
+
+	<flow
+		name="put:\claims\(claimId):application\json:fast-insurance-policy-claims-api-config"
+		doc:id="5a9c82e5-b816-44ec-90ca-ed9162fdecaf">
+		<flow-ref doc:name="put:\claims\(claimId)"
+			doc:id="787007d8-cd6f-4437-a4f3-2e000de8429c"
+			name="put:\claims\(claimId)" />
+	</flow>
+	<flow
+		name="put:\policies\(policyId):application\json:fast-insurance-policy-claims-api-config">
+		<flow-ref doc:name="put:\policies\(policyId)"
+			doc:id="79e17f81-cf59-43f6-8acd-8d4767c2ef08"
+			name="put:\policies\(policyId)" />
+	</flow>
+	<flow name="get:\claims:fast-insurance-policy-claims-api-config">
+		<flow-ref doc:name="get:\claims"
+			doc:id="283bdc5a-18a7-4479-ac7f-2c2c499c7bfc" name="get:\claims" />
+	</flow>
+	<flow name="get:\health:fast-insurance-policy-claims-api-config">
+		<flow-ref doc:name="get:\health:"
+			doc:id="20620fdf-f960-4a9c-a6c3-0b21ac1b1779" name="get:\health:" />
+	</flow>
+	<flow name="get:\policies:fast-insurance-policy-claims-api-config">
+		<flow-ref doc:name="get:\policies"
+			doc:id="c9d9adaa-9618-4824-bd48-67e6382e0e1a" name="get:\policies" />
+	</flow>
+	<flow
+		name="get:\claims\(claimId):fast-insurance-policy-claims-api-config">
+		<flow-ref doc:name="get:\claims\(claimId)"
+			doc:id="2a42a471-7d51-4c6e-9988-d56e4df4036e"
+			name="get:\claims\(claimId)" />
+	</flow>
+	<flow
+		name="get:\policies\(policyId):fast-insurance-policy-claims-api-config">
+		<flow-ref doc:name="get:\policies\(policyId)"
+			doc:id="80b4b3ae-5d74-481f-95f8-e17e90649aae"
+			name="get:\policies\(policyId)" />
+	</flow>
+	<flow
+		name="post:\claims:application\json:fast-insurance-policy-claims-api-config">
+		<flow-ref doc:name="post:\claims"
+			doc:id="05ba3fa2-9306-47ca-b92b-d2c9702ad932" name="post:\claims" />
+	</flow>
+	<flow
+		name="post:\policies:application\json:fast-insurance-policy-claims-api-config">
+		<flow-ref doc:name="post:\policies"
+			doc:id="404b8129-aa8b-4c7f-b453-0c5f7e6c4058" name="post:\policies" />
+	</flow>
+</mule>

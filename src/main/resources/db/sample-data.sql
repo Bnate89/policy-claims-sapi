@@ -1,0 +1,16 @@
+-- FAST Insurance Sample Data
+
+-- Sample Policies
+INSERT INTO policies VALUES 
+('POL-1001', 'CUST-5001', 'Auto', 'Active', '2023-01-01', '2024-01-01', 1200.50, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('POL-1002', 'CUST-5002', 'Home', 'Active', '2023-02-15', '2024-02-15', 2500.00, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('POL-1003', 'CUST-5001', 'Life', 'Active', '2023-03-01', '2033-03-01', 5000.00, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('POL-1004', 'CUST-5003', 'Health', 'Active', '2023-04-01', '2024-04-01', 3500.00, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('POL-1005', 'CUST-5002', 'Auto', 'Inactive', '2022-01-01', '2023-01-01', 1100.00, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- Sample Claims
+INSERT INTO claims VALUES
+('CLM-9001', 'POL-1001', 'Accident', 'Open', '2023-02-18', 5500.00, 'Side collision at intersection', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('CLM-9002', 'POL-1002', 'Fire', 'InProgress', '2023-04-10', 15000.00, 'Kitchen fire damage to appliances', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('CLM-9003', 'POL-1001', 'Theft', 'Approved', '2023-05-20', 2500.00, 'Stolen vehicle parts', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('CLM-9004', 'POL-1004', 'Medical', 'Open', '2023-06-15', 8000.00, 'Emergency surgery expenses', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);

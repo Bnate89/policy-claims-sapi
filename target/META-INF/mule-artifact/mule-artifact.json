@@ -1,0 +1,45 @@
+{
+  "configs": [
+    "fast-insurance-sapi-impl.xml",
+    "global.xml",
+    "global-error-handler.xml",
+    "fast-insurance-policy-claims-api.xml"
+  ],
+  "secureProperties": [],
+  "supportedJavaVersions": [],
+  "redeploymentEnabled": true,
+  "name": "78c3b5c8-9e25-47eb-ad18-be0e4d3cb6b9:policy-claims-sapi:1.0.0",
+  "minMuleVersion": "4.9.3",
+  "requiredProduct": "MULE_EE",
+  "classLoaderModelLoaderDescriptor": {
+    "id": "mule",
+    "attributes": {
+      "exportedPackages": [],
+      "exportedResources": [
+        "db/sample-data.sql",
+        "db/schema.sql",
+        "dwl/build-claim-query.dwl",
+        "dwl/build-policy-query.dwl",
+        "dwl/mask-sensitive-data.dwl",
+        "fast-insurance-policy-claims-api.xml",
+        "fast-insurance-sapi-impl.xml",
+        "global-error-handler.xml",
+        "global.xml",
+        "log4j2.xml",
+        "properties/config-dev.yaml",
+        "properties/config-prod.yaml",
+        "properties/config-qa.yaml",
+        "properties/config-secure-dev.yaml",
+        "properties/config-secure-prod.yaml",
+        "properties/config-secure-qa.yaml"
+      ]
+    }
+  },
+  "bundleDescriptorLoader": {
+    "id": "mule",
+    "attributes": {}
+  },
+  "javaSpecificationVersions": [
+    "17"
+  ]
+}

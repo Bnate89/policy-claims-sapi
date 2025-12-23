@@ -1,0 +1,13 @@
+http:
+  port: "8081"
+  
+db:
+  host: "localhost"
+  port: "5432"
+  name: "fast_insurance_dev"
+  user: "dev_user"
+  
+
+  
+logging:
+  level: "DEBUG"
